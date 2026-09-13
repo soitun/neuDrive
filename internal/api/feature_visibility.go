@@ -37,7 +37,7 @@ func publicSearchPrefixes(scope string) []string {
 	scope = strings.TrimSpace(scope)
 	switch strings.ToLower(scope) {
 	case "", "all":
-		return []string{"/memory", "/projects", "/skills", "/platforms"}
+		return []string{"/"}
 	case "memory", "profile", "/memory", "/memory/":
 		return []string{"/memory"}
 	case "/memory/profile", "/memory/profile/":
@@ -48,9 +48,11 @@ func publicSearchPrefixes(scope string) []string {
 		return []string{"/skills"}
 	case "platform", "platforms", "/platforms", "/platforms/":
 		return []string{"/platforms"}
+	case "conversation", "conversations":
+		return []string{"/conversations"}
 	}
 	if strings.HasPrefix(scope, "/") {
 		return []string{scope}
 	}
-	return []string{"/memory", "/projects", "/skills", "/platforms"}
+	return []string{"/"}
 }

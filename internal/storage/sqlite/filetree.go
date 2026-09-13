@@ -199,43 +199,6 @@ func (s *Store) Snapshot(ctx context.Context, userID uuid.UUID, rawPath string, 
 	}, nil
 }
 
-func (s *Store) Search(ctx context.Context, userID uuid.UUID, query string, trustLevel int, rawPrefix string) ([]models.FileTreeEntry, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, nil
-	}
-	prefix := hubpath.NormalizeStorage(rawPrefix)
-	if prefix == "" {
-		prefix = "/"
-	}
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, user_id, path, kind, is_directory, content, content_type, metadata_json,
-		        checksum, version, min_trust_level, created_at, updated_at, deleted_at
-		   FROM file_tree
-		  WHERE user_id = ? AND deleted_at IS NULL AND min_trust_level <= ?
-		    AND path LIKE ? AND (content LIKE ? OR path LIKE ?)
-		  ORDER BY updated_at DESC, path ASC`,
-		userID.String(),
-		trustLevel,
-		prefixLike(prefix),
-		"%"+query+"%",
-		"%"+query+"%",
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	results := make([]models.FileTreeEntry, 0, 16)
-	for rows.Next() {
-		entry, err := scanFileTreeEntry(rows)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, *entry)
-	}
-	return results, rows.Err()
-}
-
 func (s *Store) WriteEntry(ctx context.Context, userID uuid.UUID, rawPath, content, contentType string, opts models.FileTreeWriteOptions) (*models.FileTreeEntry, error) {
 	storagePath := hubpath.NormalizeStorage(rawPath)
 	if systemskills.IsProtectedPath(storagePath) {

@@ -424,10 +424,17 @@ func (s *FileTreeService) Delete(ctx context.Context, userID uuid.UUID, path str
 	return nil
 }
 
+// Keep this expression identical to the indexes in 021_file_tree_search_indexes.sql.
+const fileTreeSearchTextExpr = "coalesce(path, '') || ' ' || coalesce(content, '') || ' ' || coalesce(metadata::text, '')"
+
 // Search performs full-text search across live entries and indexed metadata.
 func (s *FileTreeService) Search(ctx context.Context, userID uuid.UUID, query string, trustLevel int, pathPrefix string) ([]models.FileTreeEntry, error) {
 	if s.repo != nil {
 		return s.repo.Search(ctx, userID, query, trustLevel, pathPrefix)
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, nil
 	}
 	args := []interface{}{userID, trustLevel}
 	argIdx := 3
@@ -446,7 +453,7 @@ func (s *FileTreeService) Search(ctx context.Context, userID uuid.UUID, query st
 		argIdx += len(prefixArgs)
 	}
 
-	searchTextExpr := "coalesce(content, '') || ' ' || coalesce(metadata::text, '')"
+	searchTextExpr := fileTreeSearchTextExpr
 	sqlQuery := fmt.Sprintf(`SELECT %s
 		FROM file_tree
 		WHERE %s
@@ -458,7 +465,8 @@ func (s *FileTreeService) Search(ctx context.Context, userID uuid.UUID, query st
 		    WHEN to_tsvector('simple', %s) @@ plainto_tsquery('simple', $%d) THEN 0
 		    ELSE 1
 		  END,
-		  updated_at DESC
+		  ts_rank_cd(to_tsvector('simple', %s), plainto_tsquery('simple', $%d)) DESC,
+		  updated_at DESC, path ASC
 		LIMIT 50`,
 		fileTreeSelectColumns,
 		strings.Join(where, " AND "),
@@ -468,8 +476,11 @@ func (s *FileTreeService) Search(ctx context.Context, userID uuid.UUID, query st
 		argIdx+1,
 		searchTextExpr,
 		argIdx,
+		searchTextExpr,
+		argIdx,
 	)
-	args = append(args, query, "%"+query+"%")
+	literal := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(query)
+	args = append(args, query, "%"+literal+"%")
 
 	rows, err := s.db.Query(ctx, sqlQuery, args...)
 	if err != nil {

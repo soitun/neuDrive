@@ -444,7 +444,7 @@ func (s *Store) init(ctx context.Context) error {
 	if err := s.canonicalizeLegacySkillPaths(ctx); err != nil {
 		return fmt.Errorf("sqlite.init: canonicalize legacy skill paths: %w", err)
 	}
-	return nil
+	return s.initSearch(ctx)
 }
 
 func (s *Store) canonicalizeLegacySkillPaths(ctx context.Context) error {

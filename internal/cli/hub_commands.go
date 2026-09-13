@@ -1012,7 +1012,8 @@ func hubSearch(ctx context.Context, target *hubTarget, query, scope string) (*hu
 	for _, hit := range resp.Results {
 		publicPath, ok := externalizeHubPath(hit.Path)
 		if !ok {
-			continue
+			// Search can return any visible file-tree root, including imported archives.
+			publicPath = hit.Path
 		}
 		hit.Path = publicPath
 		filtered = append(filtered, hit)
@@ -1274,6 +1275,20 @@ func externalNodeName(pathValue string) string {
 }
 
 func externalPathToSearchScope(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "/" || strings.EqualFold(trimmed, "all") {
+		return "all", nil
+	}
+	if root := strings.Split(strings.TrimPrefix(trimmed, "/"), "/")[0]; root == "conversation" || root == "conversations" {
+		return "/conversations" + strings.TrimPrefix(strings.TrimPrefix(trimmed, "/"), root), nil
+	}
+	// Absolute file-tree paths also cover imported roots without CLI aliases.
+	if strings.HasPrefix(trimmed, "/") {
+		root := strings.Split(strings.TrimPrefix(trimmed, "/"), "/")[0]
+		if normalizeExternalCategory(root) == "" && root != "vault" {
+			return trimmed, nil
+		}
+	}
 	resolved, err := parseExternalPath(raw)
 	if err != nil {
 		return "", err

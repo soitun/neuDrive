@@ -252,10 +252,10 @@ func (s *MCPServer) getTools() []MCPTool {
 		},
 		{
 			Name:        "search_memory",
-			Description: "全文搜索记忆、项目和技能资料",
+			Description: "搜索全部可访问的文件内容，包括记忆、项目、技能、对话和平台导入归档",
 			InputSchema: jsonSchema(map[string]interface{}{
 				"query": prop("string", "搜索关键词"),
-				"scope": prop("string", "搜索范围: memory, projects, skills, all (默认 all)"),
+				"scope": prop("string", "搜索范围: memory, projects, skills, conversations, platforms, all (默认 all)，或绝对目录路径"),
 			}, "query"),
 		},
 		{
@@ -522,15 +522,22 @@ func (s *MCPServer) callTool(params ToolCallParams) (string, bool) {
 
 		var results []interface{}
 		prefixes := []string{}
-		switch scope {
+		switch strings.ToLower(strings.TrimSpace(scope)) {
 		case "memory":
 			prefixes = []string{"/memory", "/identity"}
 		case "projects":
 			prefixes = []string{"/projects"}
 		case "skills":
 			prefixes = []string{"/skills"}
+		case "conversation", "conversations":
+			prefixes = []string{"/conversations"}
+		case "platform", "platforms":
+			prefixes = []string{"/platforms"}
 		default:
-			prefixes = []string{"/memory", "/identity", "/projects", "/skills"}
+			prefixes = []string{"/"}
+			if strings.HasPrefix(strings.TrimSpace(scope), "/") {
+				prefixes = []string{strings.TrimSpace(scope)}
+			}
 		}
 
 		seen := make(map[string]bool)

@@ -49,7 +49,7 @@ func (s *Server) buildAgentProfile(ctx context.Context, userID uuid.UUID, catego
 }
 
 func (s *Server) searchHub(ctx context.Context, userID uuid.UUID, trustLevel int, query, scope string) ([]SearchHit, error) {
-	scope = strings.ToLower(strings.TrimSpace(scope))
+	scope = strings.TrimSpace(scope)
 	if scope == "" {
 		scope = "all"
 	}
